@@ -12,3 +12,4 @@ library(magrittr)
 data(decathlon2)
 str(decathlon2)
 
+#B
