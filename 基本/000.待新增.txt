@@ -1,0 +1,1 @@
+np.isinf(df).any(axis=1)
