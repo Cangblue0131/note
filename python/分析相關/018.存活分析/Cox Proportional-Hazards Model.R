@@ -1,21 +1,21 @@
-# 安裝和載入生存分析套件
+# 嚙緩嚙誼和嚙踝蕭嚙皚嚙談存嚙踝蕭嚙磋嚙瞎嚙踝蕭
 #install.packages("survival")
 
 library(survival)
 
-# 創建一個虛擬的生存數據集
+# 嚙請建一嚙諉蛛蕭嚙踝蕭嚙踝蕭嚙談存嚙複據塚蕭
 set.seed(123)
-n <- 100  # 樣本數
-time <- rexp(n, rate = 0.2)  # 生成生存時間，假設指數分佈
-status <- sample(0:1, n, replace = TRUE)  # 生成事件狀態，0表示設限，1表示事件發生
-age <- rnorm(n, mean = 50, sd = 10)  # 自變數1：年齡
-sex <- factor(sample(c("男", "女"), n, replace = TRUE))  # 自變數2：性別
+n <- 100  # 嚙誼伐蕭嚙踝蕭
+time <- rexp(n, rate = 0.2)  # 嚙談佗蕭嚙談存嚙褕塚蕭嚙璀嚙踝蕭嚙稽嚙踝蕭嚙複歹蕭嚙瘦
+status <- sample(0:1, n, replace = TRUE)  # 嚙談佗蕭嚙複件狀態嚙璀0嚙踝蕭嚙豌設嚙踝蕭嚙璀1嚙踝蕭嚙豌事伐蕭o嚙踝蕭
+age <- rnorm(n, mean = 50, sd = 10)  # 嚙踝蕭嚙豌潘蕭1嚙瘦嚙羯嚙踝蕭
+sex <- factor(sample(c("嚙糊", "嚙糊"), n, replace = TRUE))  # 嚙踝蕭嚙豌潘蕭2嚙瘦嚙褊別
 
-# 將數據組合成一個數據框
+# 嚙瞇嚙複據組合嚙踝蕭嚙瑾嚙諉數據殷蕭
 data <- data.frame(time, status, age, sex)
 
-# 擬合Cox比例風險模型
+# 嚙踝蕭嚙碼Cox嚙踝蕭珥嚙踝蕭I嚙課恬蕭
 cox_model <- coxph(Surv(time, status) ~ age + sex, data = data)
 
-# 顯示模型摘要
+# 嚙踝蕭僂珓嚙踝蕭K嚙緯
 summary(cox_model)
