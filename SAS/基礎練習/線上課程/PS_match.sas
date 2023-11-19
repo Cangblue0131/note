@@ -34,7 +34,7 @@ table
 run;
 
 /*calculate the PS*/
-proc logistic data=b.demo2 descending ; /* descending 控制顯示參數時的排序方式(按照估計值的大小) */
+proc logistic data=DemoData.demo2 descending ; /* descending 控制顯示參數時的排序方式(按照估計值的大小) */
 class  index_class (ref='FGA')  ID_S (ref='1') /* 這邊要把類別行變數放上來, 並且設定好 reference */
 /param=ref; /* 特定參數基準值 */
 /* 在 SAS 中, '/' 通常用於指定 proc 的選項, 例如控制輸出和圖形格式 */
@@ -104,7 +104,7 @@ run;
 ods graphics off;
 
 /*PS-match*/
-data b.ps;
+data DemoData.ps;
     set ps;
     if  index_class='FGA' then interven = 0 ;else interven = 1; /* 以 FGA 為參考組 */
 run;
@@ -124,6 +124,7 @@ run;
     matches /* Output file of matched */
     );
 
+/* SORTCC 用於排序 case 和 control 的檔案 */
 %MACRO SORTCC;
     proc sort data = tcases
     out = &LIB..Scase; 
@@ -148,73 +149,78 @@ run;
     /* Create the data set of Controls*/
     if &depend. = 0 and prob ne . /* 如果 depend = 0 且 prob 不等於 遺漏值 */
     then do;
-        cprob = Round(prob,&digits.); /* 對 prob 進行四捨五入, 因為 digits 只有 0(前面IF的關係), 所以只會輸出整數. */
+        cprob = Round(prob,&digits.); /* 對 prob 進行四捨五入至 digits(此macro參數) 位數, 若是 .01 則是至小數後兩位. */
         Cmatch = 0;
         Length RandNum 8;
-        RandNum = ranuni(1234567);
+        RandNum = ranuni(1234567); /* 生成 0~1 的隨機數, 裡面的是種子碼 */
         Label RandNum=
-        'Uniform Randomization Score';
+            'Uniform Randomization Score'; /* 修改顯示名稱 */
         output tctrl;
     end;
-/* Create the data set of Cases */
-else if &depend. = 1 and prob ne .
-then do;
-Cmatch = 0;
-aprob =Round(prob,&digits.);
-output tcases;
-end;
-run;
-%SORTCC;
+
+    /* Create the data set of Cases */
+    else if &depend. = 1 and prob ne .
+    then do;
+        Cmatch = 0;
+        aprob =Round(prob,&digits.);
+        output tcases;
+    end;
+    
+    run;
+    %SORTCC;
 %MEND INITCC;
+
 /* Macro to Perform the Match */
 %MACRO MATCH (MATCHED,DIGITS);
-data &lib..&matched. (drop=Cmatch randnum
-aprob cprob start oldi curctrl matched);
-/* select the cases data set */
-set &lib..SCase ;
-curob + 1;
-matchto = curob;
-if curob = 1 then do;
-start = 1;
-oldi = 1;
-end;
-/* select the controls data set */
-DO i = start to n;
-set &lib..Scontrol point= i nobs = n;
-if i gt n then goto startovr;
-if _Error_ = 1 then abort;
-curctrl = i;
-/* output control if match found */
-if aprob = cprob then
-do;
-Cmatch = 1;
-output &lib..&matched.;
-matched = curctrl;
-goto found;
-end;
-/* exit do loop if out of potential matches */
-else if cprob gt aprob then
-goto nextcase;
-startovr: if i gt n then
-goto nextcase;
-END; /* end of DO LOOP */
-/* If no match was found, put pointer
-Posters
-back*/
-nextcase:
-if Cmatch=0 then start = oldi;
-/* If a match was found, output case and
-increment pointer */
-found:
-if Cmatch = 1 then do;
-oldi = matched + 1;
-start = matched + 1;
-set &lib..SCase point = curob;
-output &lib..&matched.;
-end;
-retain oldi start;
-if _Error_=1 then _Error_=0;
-run;
+    data &lib..&matched. (drop=Cmatch randnum
+    aprob cprob start oldi curctrl matched);
+    /* select the cases data set */
+    set &lib..SCase ;
+    curob + 1;
+    matchto = curob;
+    if curob = 1 then do;
+        start = 1;
+        oldi = 1;
+    end;
+    /* select the controls data set */
+    DO i = start to n;
+    set &lib..Scontrol point= i nobs = n;
+    if i gt n then goto startovr;
+    if _Error_ = 1 then abort;
+    curctrl = i;
+    /* output control if match found */
+    if aprob = cprob then
+    do;
+        Cmatch = 1;
+        output &lib..&matched.;
+        matched = curctrl;
+        goto found;
+    end;
+
+    /* exit do loop if out of potential matches */
+    else if cprob gt aprob then
+        goto nextcase;
+    startovr: if i gt n then
+        goto nextcase;
+    END; /* end of DO LOOP */
+
+    /* If no match was found, 
+    put pointer Posters back*/
+    nextcase:
+    if Cmatch=0 then start = oldi;
+
+    /* If a match was found, output
+    case and increment pointer */
+    found:
+    if Cmatch = 1 then do;
+        oldi = matched + 1;
+        start = matched + 1;
+        set &lib..SCase point = curob;
+        output &lib..&matched.;
+    end;
+    retain oldi start;
+    if _Error_=1 then _Error_=0;
+    run;
 /* Get files of unmatched cases and */
 /* controls. Note that in the example */
 /* data, the patient identifiers are HID*/
@@ -223,33 +229,39 @@ run;
 /* data for these two fields. Modify */
 /* these fields with the appropriate */
 /* patient identifier field(s) */
-proc sort data=&lib..scase out=sumcase;
-by id ;
-run;
-proc sort data=&lib..scontrol
-out=sumcontrol;
-by id;
-run;
-proc sort data=&lib..&matched. out=smatched
-(keep=id matchto);
-by id;
-run;
-data tcases (drop=matchto);
-merge sumcase(in=a) smatched;
-by id;
-if a and matchto = . ;
-cmatch = 0;
-aprob =Round(prob,&digits.);
-run;
-data tctrl (drop=matchto);
-merge sumcontrol(in=a) smatched;
-by id;
-if a and matchto = . ;
-cmatch = 0;
-cprob = Round(prob,&digits.);
-run;
-%SORTCC
+    proc sort data=&lib..scase out=sumcase;
+        by id ;
+    run;
+    
+    proc sort data=&lib..scontrol
+        out=sumcontrol;
+        by id;
+    run;
+    
+    proc sort data=&lib..&matched. out=smatched
+    (keep=id matchto);
+        by id;
+    run;
+
+    data tcases (drop=matchto);
+        merge sumcase(in=a) smatched;
+        by id;
+        if a and matchto = . ;
+        cmatch = 0;
+        aprob =Round(prob,&digits.);
+    run;
+
+    data tctrl (drop=matchto);
+        merge sumcontrol(in=a) smatched;
+        by id;
+        if a and matchto = . ;
+        cmatch = 0;
+        cprob = Round(prob,&digits.);
+    run;
+
+    %SORTCC
 %MEND MATCH;
+
 /* Note: This section can be */
 /* modified to try variations of the */
 /* basic algorithm. */
@@ -300,11 +312,10 @@ proc sort data=&lib..&matches. out =
 &lib..S&matches.;
 by &depend.;
 run;
+%INITCC(.00001);
 %MEND GREEDMTCH;
 
 %GREEDMTCH (DemoData, ps, interven , matchfile);
-
-
 
 /****Check the PS distribution*/
 
