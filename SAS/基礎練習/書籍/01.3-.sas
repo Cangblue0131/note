@@ -12,3 +12,18 @@ RUN;
 PROC FREQ DATA = eval;
 	TABLES q20a; /* 對 eval 的 q20a 進行計數 */
 RUN;
+
+DATA TEST1;
+INPUT #1 name $ 10. /@1 price E7. #3 profit 6.2;
+datalines;
+Alice
+123E2             1
+50078
+      Bob
+ 9.99E5
+-30000
+Anna Marie
+
+-10000
+;
+run;
